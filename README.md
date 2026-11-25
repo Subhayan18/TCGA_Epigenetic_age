@@ -56,11 +56,11 @@ Every `Supp_Tables_C*.xlsx` workbook has one sheet per table, each with a bold t
 
 All scripts are run from the repository root (originally `Meth_TCGA_GSE213478/`). Run `python3 <script> -h` to see a script's arguments. Scripts named `*_supp_tables.py` and `c8_10_outputs.py` only read existing results and never refit models.
 
-### C0 – Cohort
+### Cohort
 
 `data/pairs/pairs_rebuilt.tsv` is the verified pair table. It was rebuilt from GDC so that every tumour and normal aliquot is checked against its barcode and file UUID (`gdc_barcodes.tsv`, `gdc_aliquot_map.tsv`).
 
-### C1 – Clocks
+### Clocks
 
 | Script | What it does | Main output |
 |---|---|---|
@@ -69,7 +69,7 @@ All scripts are run from the repository root (originally `Meth_TCGA_GSE213478/`)
 | `scripts/c1_tables.py` | Tumour vs normal tests per type; normal-tissue clock vs chronological age | `Table_mitotic_clocks_tumour_vs_normal.csv`, `Table_normal_mitotic_clock_vs_age.csv`, `accel_stats_corrected.csv` |
 | `scripts/c1_supp_tables.py` | Assembles the C1 supplementary workbook | `Supp_Tables_C1.xlsx` |
 
-### C1.4 / C3 – Heterogeneity of methylation change
+### Heterogeneity of methylation change
 
 Each patient's probes are grouped into units: probe clusters with gaps ≤500 bp, or fixed 5 Mb windows. For each unit, Δ = mean β(T) − mean β(N).
 
@@ -82,7 +82,7 @@ Each patient's probes are grouped into units: probe clusters with gaps ≤500 bp
 | `scripts/c3_5_orientation.py` | Per-type summary of the 5 Mb replica, compared with the original thesis numbers |
 | `scripts/c3_supp_tables.py` | `Supp_Tables_C3.xlsx` |
 
-### C2 – Composition and purity
+### Composition and purity
 
 | Script | What it does |
 |---|---|
@@ -90,7 +90,7 @@ Each patient's probes are grouped into units: probe clusters with gaps ≤500 bp
 | `scripts/c2_4_hetero_purity.py` | Tests whether the heterogeneity metrics are driven by purity or composition (per type: Spearman; pooled: model with type FE). LIHC is excluded from the composition terms |
 | `scripts/c2_supp_tables.py` | `Supp_Tables_C2.xlsx` |
 
-### C4 – X chromosome
+### X chromosome
 
 | Script | What it does |
 |---|---|
@@ -99,7 +99,7 @@ Each patient's probes are grouped into units: probe clusters with gaps ≤500 bp
 | `scripts/c4_1_3_x_sex_cna.py` | X enrichment stratified by sex and by X copy-number state (strata with n ≥ 10) |
 | `scripts/c4_supp_tables.py` | `Supp_Tables_C4.xlsx` |
 
-### C8 – What does the mitotic-clock advance track?
+### What does the mitotic-clock advance track?
 
 | Script | What it does |
 |---|---|
@@ -111,7 +111,7 @@ Each patient's probes are grouped into units: probe clusters with gaps ≤500 bp
 | `scripts/c8_6_models.py` | Δclock ~ proliferation + purity + composition + Δβ + age + sex; incremental value for grade, stage, WGD and aneuploidy (LR tests); block contributions. `--check` only checks which input columns matched |
 | `scripts/c8_10_outputs.py` | Figure 6 composite (SVG/PDF) and `Supp_Tables_C8.xlsx` |
 
-### C1.5 – Paediatric tumours
+### Paediatric tumours
 
 | Script | What it does |
 |---|---|
@@ -135,11 +135,6 @@ Raw data are not distributed. To reproduce from scratch, download:
 - Python ≥ 3.9: `pip install -r requirements.txt` (numpy, pandas, scipy, statsmodels, matplotlib, openpyxl)
 - Legacy R scripts only: tidyverse, ape, phangorn, ggdendro, cowplot, openxlsx
 
-## Known issues
-
-- `scripts/horvath.py` hard-codes the β-file directory (`D = ...`) and expects the pair tables in the working directory; edit before running.
-- Some scripts default to paths from before the reorganisation (`c1_out/`, `phylo_out/`). `reorg.sh` creates symlinks that keep them working.
-
 ## Methods references
 
 - Horvath S. *Genome Biol* 2013;14:R115 (DNAmAge)
@@ -156,7 +151,3 @@ Raw data are not distributed. To reproduce from scratch, download:
 ## Citation
 
 Mukherji A, Chattopadhyay S. Manuscript in revision. A citation will be added on publication.
-
-## Contact
-
-Subhayan Chattopadhyay, Lund University
