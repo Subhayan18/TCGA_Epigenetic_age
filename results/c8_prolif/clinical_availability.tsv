@@ -1,0 +1,53 @@
+type	variable	n	levels	usable
+BLCA	grade	16	High:16	False
+BLCA	stage	16	II:5; III:4; IV:7	False
+BLCA	stage_late	16	0.0:5; 1.0:11	False
+BLCA	subtype_mRNA	12	1:3; 2:6; 3:2; 4:1	False
+BRCA	grade	0		False
+BRCA	stage	83	I:12; II:50; III:20; IV:1	True
+BRCA	stage_late	83	0.0:62; 1.0:21	True
+BRCA	subtype_mRNA	84	Basal:7; Her2:4; LumA:43; LumB:14; Normal:16	True
+COAD	grade	0		False
+COAD	stage	15	I:2; II:6; III:5; IV:2	False
+COAD	stage_late	15	0.0:8; 1.0:7	False
+COAD	subtype_mRNA	0		False
+ESCA	grade	7	G2:5; G3:2	False
+ESCA	stage	10	I:5; II:4; III:1	False
+ESCA	stage_late	10	0.0:9; 1.0:1	False
+ESCA	subtype_mRNA	0		False
+HNSC	grade	43	G1:5; G2:21; G3:17	True
+HNSC	stage	43	II:7; III:9; IV:27	True
+HNSC	stage_late	43	0.0:7; 1.0:36	False
+HNSC	subtype_mRNA	43	Atypical:8; Basal:16; Classical:11; Mesenchymal:8	True
+KIRC	grade	137	G2:50; G3:57; G4:30	True
+KIRC	stage	138	I:46; II:13; III:45; IV:34	True
+KIRC	stage_late	138	0.0:59; 1.0:79	True
+KIRC	subtype_mRNA	121	1:42; 2:24; 3:26; 4:29	True
+KIRP	grade	0		False
+KIRP	stage	24	I:7; II:1; III:13; IV:3	False
+KIRP	stage_late	24	0.0:8; 1.0:16	True
+KIRP	subtype_mRNA	24	mRNA.Cluster 1:3; mRNA.Cluster 2:17; mRNA.Cluster 3:4	False
+LIHC	grade	29	G1:5; G2:15; G3:9	True
+LIHC	stage	24	I:13; II:4; III:7	False
+LIHC	stage_late	24	0.0:17; 1.0:7	False
+LIHC	subtype_mRNA	29	1:9; 3:4; 4:10; 5:6	True
+LUAD	grade	0		False
+LUAD	stage	15	I:8; II:2; III:4; IV:1	False
+LUAD	stage_late	15	0.0:10; 1.0:5	False
+LUAD	subtype_mRNA	0		False
+LUSC	grade	0		False
+LUSC	stage	27	I:20; II:3; III:4	False
+LUSC	stage_late	27	0.0:23; 1.0:4	False
+LUSC	subtype_mRNA	26	basal:3; classical:16; primitive:3; secretory:4	False
+PRAD	grade	0		False
+PRAD	stage	0		False
+PRAD	stage_late	0		False
+PRAD	subtype_mRNA	36	1:9; 2:9; 3:18	True
+THCA	grade	0		False
+THCA	stage	35	I:23; II:4; III:7; IV:1	False
+THCA	stage_late	35	0.0:27; 1.0:8	True
+THCA	subtype_mRNA	34	1:7; 2:5; 3:5; 4:11; 5:6	False
+UCEC	grade	22	G1:1; G2:2; G3:19	False
+UCEC	stage	0		False
+UCEC	stage_late	0		False
+UCEC	subtype_mRNA	11	1:7; 2:3; 3:1	False

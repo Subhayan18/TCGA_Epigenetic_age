@@ -1,0 +1,21 @@
+# Raw / large data stay off-repo (TCGA GDC, GSE213478, RNA, beta matrices)
+*.gz
+*.tgz
+*.tar
+*.zip
+*.RData
+*.idat
+*.annotation
+data/c8/*.tsv
+legacy_student/methylation_betas/
+gdc_flat/
+pediatric*/
+cladogram_results/
+backup_zips/
+__pycache__/
+*.pyc
+._*
+.DS_Store
+.Rhistory
+*.fuse_hidden*
+*.log

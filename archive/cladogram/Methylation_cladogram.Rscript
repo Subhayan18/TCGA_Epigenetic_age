@@ -1,0 +1,376 @@
+library(tidyverse)
+library(ape)
+library(phangorn)
+library(ggdendro)
+library(RColorBrewer)
+library(gridExtra)
+library(cowplot)
+library(grid)
+
+Sys.setlocale("LC_ALL", "en_US.UTF-8")
+
+out_dir <- "/home/chattopa/data_storage/Meth_TCGA_GSE213478/"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 1: LOAD DATA
+# Each TSV file has no header. Columns are:
+#   cpg_id | beta_value | chr | start | end
+# We load normal and tumor separately, then join on shared CpG positions.
+# CpGs with NA beta in either sample are dropped — positions with
+# insufficient read coverage cannot be used for distance calculation.
+# ══════════════════════════════════════════════════════════════════════════════
+read_beta <- function(file, sample_name) {
+  read_tsv(file, col_names = c("cpg_id", "beta", "chr", "start", "end"),
+           col_types = "cncii") %>%
+    mutate(sample = sample_name)
+}
+
+normal <- read_beta("/home/chattopa/data_storage/Meth_TCGA_GSE213478/methylation_betas/LUAD_44-2668_N.tsv", "normal")
+tumor  <- read_beta("/home/chattopa/data_storage/Meth_TCGA_GSE213478/methylation_betas/LUAD_44-2668_T.tsv", "tumor")
+
+betas <- inner_join(normal, tumor,
+                    by     = c("cpg_id", "chr", "start", "end"),
+                    suffix = c("_normal", "_tumor")) %>%
+  filter(!is.na(beta_normal), !is.na(beta_tumor))
+
+message("CpGs after NA filtering: ", nrow(betas))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 2: SUMMARISE INTO CHROMOSOMAL WINDOWS
+# Average CpG beta values into 5 Mb windows to reduce noise.
+# delta_beta = tumor - normal:
+#   positive = hypermethylation in tumor
+#   negative = hypomethylation in tumor
+# Windows with fewer than 20 CpGs are dropped as unreliable.
+# ══════════════════════════════════════════════════════════════════════════════
+window_size <- 5e6
+
+windows <- betas %>%
+  mutate(window = paste0(chr, ":", floor(start / window_size) * window_size)) %>%
+  group_by(window, chr) %>%
+  summarise(
+    normal_beta = mean(beta_normal, na.rm = TRUE),
+    tumor_beta  = mean(beta_tumor,  na.rm = TRUE),
+    n_cpg       = n(),
+    .groups     = "drop"
+  ) %>%
+  filter(n_cpg >= 20) %>%
+  mutate(delta_beta = tumor_beta - normal_beta)
+
+message("Genomic windows after filtering: ", nrow(windows))
+message("delta_beta range: ",
+        round(min(windows$delta_beta), 3), " to ",
+        round(max(windows$delta_beta), 3))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 3: BUILD DISTANCE MATRIX
+# Each window is a point in 2D space: (normal_beta, tumor_beta).
+# Euclidean distance captures methylation divergence between windows.
+# ══════════════════════════════════════════════════════════════════════════════
+mat <- windows %>%
+  select(window, normal_beta, tumor_beta) %>%
+  column_to_rownames("window") %>%
+  as.matrix()
+
+dist_mat <- dist(mat, method = "euclidean")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 4: BUILD UPGMA TREE
+# UPGMA produces an ultrametric tree where branch lengths reflect epigenetic
+# divergence under a fixed methylation rate assumption.
+# Convert to hclust immediately — root() breaks ultrametricity and causes
+# as.hclust() to fail. UPGMA is already implicitly rooted at the midpoint.
+# ══════════════════════════════════════════════════════════════════════════════
+tree <- upgma(dist_mat)
+hc   <- as.hclust(tree)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 5: CUT TREE INTO SUBCLONE CLUSTERS
+# cutree() slices the dendrogram into k groups.
+# Each group = windows with similar methylation = an epigenetic lineage.
+# Clusters labeled A, B, C, ...
+#
+# Tuning k — inspect cluster_summary printed in step 8:
+#   n_windows < 5 in any cluster → reduce k
+#   all clusters span every chromosome → increase k
+# ══════════════════════════════════════════════════════════════════════════════
+k <- 4
+
+cluster_ids <- cutree(hc, k = k)
+LETTERS_map <- setNames(LETTERS[seq_len(k)], seq_len(k))
+
+windows <- windows %>%
+  left_join(
+    tibble(window   = names(cluster_ids),
+           subclone = LETTERS_map[as.character(cluster_ids)]),
+    by = "window"
+  )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 6: IDENTIFY TRUNK CLUSTER
+# Trunk = cluster with smallest variance in delta_beta.
+# Low variance = stable methylation = early clonal event present in all
+# tumor cells before any branching. All other clusters are "private".
+# ══════════════════════════════════════════════════════════════════════════════
+trunk_cluster <- windows %>%
+  group_by(subclone) %>%
+  summarise(var_db = var(delta_beta), .groups = "drop") %>%
+  slice_min(var_db, n = 1) %>%
+  pull(subclone)
+
+windows <- windows %>%
+  mutate(clonal_type = if_else(subclone == trunk_cluster, "trunk", "private"))
+
+message("Trunk cluster: ", trunk_cluster)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 7: METHYLATION STATE ANNOTATION
+# Thresholds are data-driven (±1 SD of delta_beta) rather than fixed
+# cutoffs because effect sizes in WGBS are small in this dataset.
+# hyper = tumor more methylated than normal
+# hypo  = tumor less methylated than normal
+# NOTE: LOH/CNV events require separate WGS/SNP array data.
+# ══════════════════════════════════════════════════════════════════════════════
+db_sd  <- sd(windows$delta_beta)
+hi_cut <-  db_sd
+lo_cut <- -db_sd
+
+message("Thresholds — hyper: >", round(hi_cut, 3),
+        "  hypo: <", round(lo_cut, 3))
+
+meth_annotation <- windows %>%
+  group_by(subclone, chr) %>%
+  summarise(mean_db = mean(delta_beta), .groups = "drop") %>%
+  mutate(
+    state = case_when(
+      mean_db >  hi_cut ~ "hyper",
+      mean_db <  lo_cut ~ "hypo",
+      TRUE              ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(state)) %>%
+  mutate(event_label = paste0(sub("chr", "", chr), " ", state)) %>%
+  group_by(subclone) %>%
+  summarise(meth_label = paste(event_label, collapse = ", "), .groups = "drop")
+
+windows <- windows %>%
+  left_join(meth_annotation, by = "subclone")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 8: BUILD CLUSTER SUMMARY TABLE
+# Printed to console for k-tuning, and drawn as inset on the final plot.
+# ══════════════════════════════════════════════════════════════════════════════
+cluster_summary <- windows %>%
+  group_by(subclone, clonal_type) %>%
+  summarise(
+    n_windows   = n(),
+    mean_delta  = round(mean(delta_beta), 4),
+    sd_delta    = round(sd(delta_beta),   4),
+    meth_events = first(meth_label),
+    .groups     = "drop"
+  ) %>%
+  arrange(subclone) %>%
+  mutate(
+    meth_events = replace_na(meth_events, "stable"),
+    clonal_type = if_else(clonal_type == "trunk",
+                          paste0(clonal_type, " *"), clonal_type)
+  ) %>%
+  rename(
+    Subclone      = subclone,
+    Type          = clonal_type,
+    Windows       = n_windows,
+    `Mean dB`     = mean_delta,
+    `SD dB`       = sd_delta,
+    `Meth events` = meth_events
+  )
+
+print(cluster_summary)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 9: EXTRACT DENDROGRAM COORDINATES
+# Segments joined to tip metadata by xend == tip x.
+# Unmatched segments are internal nodes = shared common ancestor = trunk.
+# These are drawn in red (is_trunk = TRUE).
+# ══════════════════════════════════════════════════════════════════════════════
+ddata <- dendro_data(hc, type = "rectangle")
+
+tip_meta <- ddata$labels %>%
+  rename(window = label) %>%
+  left_join(windows, by = "window")
+
+seg_meta <- ddata$segments %>%
+  left_join(tip_meta %>% select(x, subclone),
+            by = c("xend" = "x")) %>%
+  mutate(
+    subclone = replace_na(subclone, "unassigned"),
+    is_trunk = subclone == "unassigned"
+  )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 10: COLORS AND GEOMETRY
+# ══════════════════════════════════════════════════════════════════════════════
+subclone_colors <- setNames(
+  colorRampPalette(brewer.pal(8, "Set2"))(k),
+  LETTERS[seq_len(k)]
+)
+
+cluster_ranges <- tip_meta %>%
+  group_by(subclone) %>%
+  summarise(
+    x_min = min(x) - 0.4,
+    x_max = max(x) + 0.4,
+    .groups = "drop"
+  )
+
+y_max <- max(ddata$segments$y)
+y_bar <- -y_max * 0.04
+y_lab <- -y_max * 0.10
+y_evt <- -y_max * 0.17
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 11: BUILD TREE PLOT
+# ══════════════════════════════════════════════════════════════════════════════
+p_tree <- ggplot() +
+
+  # Red = shared trunk (internal nodes, common ancestor of all subclones)
+  geom_segment(
+    data      = seg_meta %>% filter(is_trunk),
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color     = "#C0392B",
+    linewidth = 2.2,
+    lineend   = "round"
+  ) +
+
+  # Colored branches = subclone-specific lineages
+  geom_segment(
+    data      = seg_meta %>% filter(!is_trunk),
+    aes(x = x, y = y, xend = xend, yend = yend, color = subclone),
+    linewidth = 0.8,
+    lineend   = "round"
+  ) +
+
+  # Tip dots = individual 5 Mb windows
+  geom_point(
+    data  = tip_meta,
+    aes(x = x, y = y, fill = subclone),
+    shape = 21, color = "white", size = 1.5
+  ) +
+
+  # Colored bar spanning each cluster's tip range
+  geom_segment(
+    data = cluster_ranges,
+    aes(x = x_min, xend = x_max,
+        y = y_bar,  yend = y_bar,
+        color = subclone),
+    linewidth = 3, lineend = "butt"
+  ) +
+
+  # Subclone letter below bar
+  geom_text(
+    data = cluster_ranges %>%
+      left_join(cluster_summary %>% select(Subclone, `Meth events`),
+                by = c("subclone" = "Subclone")),
+    aes(x     = (x_min + x_max) / 2,
+        y     = y_lab,
+        label = subclone,
+        color = subclone),
+    size = 5, fontface = "bold"
+  ) +
+
+  # Methylation event label below letter
+  geom_text(
+    data = cluster_ranges %>%
+      left_join(cluster_summary %>% select(Subclone, `Meth events`),
+                by = c("subclone" = "Subclone")),
+    aes(x     = (x_min + x_max) / 2,
+        y     = y_evt,
+        label = `Meth events`),
+    size = 2.8, color = "grey40", fontface = "italic"
+  ) +
+
+  scale_color_manual(values = subclone_colors,
+                     breaks = LETTERS[seq_len(k)]) +
+  scale_fill_manual(values  = subclone_colors,
+                    breaks  = LETTERS[seq_len(k)]) +
+  scale_x_continuous(expand = expansion(mult = c(0.02, 0.02))) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0)),
+    limits = c(y_evt - y_max * 0.05, y_max * 1.05)
+  ) +
+  coord_flip() +
+
+  theme_classic(base_size = 12) +
+  theme(
+    plot.background  = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.line        = element_blank(),
+    axis.text        = element_blank(),
+    axis.ticks       = element_blank(),
+    axis.title       = element_blank(),
+    panel.grid       = element_blank(),
+    legend.position  = "none",
+    plot.title       = element_text(size = 14, face = "bold", color = "grey20"),
+    plot.subtitle    = element_text(size = 9,  color = "grey50"),
+    plot.margin      = margin(20, 20, 50, 20)
+  ) +
+  labs(
+    title    = "Epigenetic cladogram - LUAD 44-2668",
+    subtitle = paste0(
+      k, " subclones  |  UPGMA  |  5 Mb windows  |  ",
+      "red = shared trunk (common ancestor)  "
+    )
+  )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 12: BUILD TABLE GROB
+# tableGrob renders the data frame as a formatted grid table.
+# draw_grob from cowplot places it at an exact position on the canvas
+# using normalized coordinates (0-1), avoiding all coord_flip confusion.
+# ══════════════════════════════════════════════════════════════════════════════
+table_grob <- tableGrob(
+  cluster_summary,
+  rows  = NULL,
+  theme = ttheme_minimal(
+    core = list(
+      fg_params = list(cex = 0.80),
+      bg_params = list(
+        fill = rep(c("white", "#f0f0f0"), length.out = nrow(cluster_summary)),
+        col  = NA
+      )
+    ),
+    colhead = list(
+      fg_params = list(cex = 0.85, fontface = "bold"),
+      bg_params = list(fill = "grey88", col = NA)
+    ),
+    padding = unit(c(3, 6), "mm")
+  )
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 13: OVERLAY TABLE ON TREE USING ggdraw + draw_grob
+# ggdraw() creates a drawing canvas the same size as p_tree.
+# draw_plot() places the tree filling the full canvas.
+# draw_grob() places the table at a specific position using normalized
+# coordinates: x, y = bottom-left corner of the grob (0-1 scale),
+# width and height control the grob size on the canvas.
+# Adjust x, y, width, height to reposition the table if needed.
+# ══════════════════════════════════════════════════════════════════════════════
+p_final <- ggdraw() +
+  draw_plot(p_tree,
+            x = 0, y = 0, width = 1, height = 1) +
+  draw_grob(table_grob,
+            x      = 0.72,   # left edge of table (72% across canvas)
+            y      = 0.62,   # bottom edge of table (62% up canvas)
+            width  = 0.26,   # table takes 26% of canvas width
+            height = 0.30)   # table takes 30% of canvas height
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 14: SAVE
+# ══════════════════════════════════════════════════════════════════════════════
+ggsave(file.path(out_dir, "cladogram_LUAD_44-2668.pdf"),
+       p_final, width = 20, height = 10, bg = "white")
+
+ggsave(file.path(out_dir, "cladogram_LUAD_44-2668.png"),
+       p_final, width = 20, height = 10, dpi = 300, bg = "white")
+
+message("Saved to ", out_dir)

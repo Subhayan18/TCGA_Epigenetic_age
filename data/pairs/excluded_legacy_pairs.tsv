@@ -1,0 +1,15 @@
+pid	type	t_aliquot	t_file	n01	n_aliquot	n_file	sex	race	age	reason	in_legacy
+TCGA-43-3920	LUSC				TCGA-43-3920-11B-01D-1551-05	8bd9a69b-32c8-4a32-bdab-03cf051e818b.methylation_array.sesame.level3betas.txt	MALE	WHITE	71	no HM450 primary (01)	TRUE
+TCGA-44-3918	LUAD	TCGA-44-3918-01A-01D-A276-05	a2298929-4d14-4f3e-b079-3efe2fce3dcb.methylation_array.sesame.level3betas.txt	2			FEMALE	WHITE	60	no HM450 normal (11)	TRUE
+TCGA-44-4112	LUAD	TCGA-44-4112-01A-01D-A276-05	e97e8e70-b351-4d36-82bc-6bc838981f24.methylation_array.sesame.level3betas.txt	2			FEMALE	WHITE	60	no HM450 normal (11)	TRUE
+TCGA-A6-2672	COAD	TCGA-A6-2672-01B-03D-2299-05	485db35b-c0a2-4b47-857a-5171f3ab0ea6.methylation_array.sesame.level3betas.txt	1			FEMALE	WHITE	82	no HM450 normal (11)	TRUE
+TCGA-A6-3809	COAD	TCGA-A6-3809-01A-01D-A27A-05	8ddd0988-5711-4a7c-9634-e1f626f59d40.methylation_array.sesame.level3betas.txt	2			FEMALE	WHITE	71	no HM450 normal (11)	TRUE
+TCGA-A6-3810	COAD	TCGA-A6-3810-01A-01D-A27A-05	ba6dd66c-f40c-4a64-b5fa-55d09b582154.methylation_array.sesame.level3betas.txt	2			MALE	WHITE	62	no HM450 normal (11)	TRUE
+TCGA-A7-A0CE	BRCA				TCGA-A7-A0CE-11A-21D-A10Q-05	7f9a85ed-19d4-49ba-b508-24cef19215c5.methylation_array.sesame.level3betas.txt	FEMALE	WHITE	57	no HM450 primary (01)	TRUE
+TCGA-A7-A0CH	BRCA				TCGA-A7-A0CH-11A-32D-A10Q-05	b4513a50-db4c-4666-af7c-3941997c96dd.methylation_array.sesame.level3betas.txt	FEMALE	WHITE	79	no HM450 primary (01)	TRUE
+TCGA-A7-A0DB	BRCA				TCGA-A7-A0DB-11A-33D-A093-05	7c2b5cc5-f43c-4351-b496-16e9fb82b238.methylation_array.sesame.level3betas.txt	FEMALE	WHITE	56	no HM450 primary (01)	TRUE
+TCGA-B2-3924	KIRC	TCGA-B2-3924-01A-02D-A27A-05	dd85db7e-eb0d-43be-9f73-5af8623f4bd5.methylation_array.sesame.level3betas.txt	2			MALE	WHITE	73	no HM450 normal (11)	TRUE
+TCGA-BH-A0AY	BRCA				TCGA-BH-A0AY-11A-23D-A10Q-05	932ce08a-704d-4fa7-80ab-6acbad7a4565.methylation_array.sesame.level3betas.txt	FEMALE	WHITE	62	no HM450 primary (01)	TRUE
+TCGA-BH-A0BV	BRCA				TCGA-BH-A0BV-11A-31D-A10Q-05	f3088c37-e3a9-4a91-987b-38c0ecd4aea9.methylation_array.sesame.level3betas.txt	FEMALE	WHITE	78	no HM450 primary (01)	TRUE
+TCGA-BH-A0DZ	BRCA				TCGA-BH-A0DZ-11A-22D-A10Q-05	7b5340d9-a4f9-4aa1-abd1-16c37dd95453.methylation_array.sesame.level3betas.txt	FEMALE	WHITE	43	no HM450 primary (01)	TRUE
+TCGA-BH-A18V	BRCA						FEMALE	WHITE	48	no HM450 primary (01)	TRUE
